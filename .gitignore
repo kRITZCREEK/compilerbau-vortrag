@@ -4,3 +4,6 @@ langlang
 Docs/*
 !Docs/Doku.tex
 !Docs/bibliography.bib
+program
+*.gz
+LICENSE
