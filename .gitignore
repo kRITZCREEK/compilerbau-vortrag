@@ -1,0 +1,6 @@
+*.hi
+*.o
+langlang
+Docs/*
+!Docs/Doku.tex
+!Docs/bibliography.bib

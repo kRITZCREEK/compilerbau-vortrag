@@ -1,0 +1,273 @@
+\documentclass[12pt,german]{article}
+\usepackage[german]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{hyperref}
+\usepackage{natbib}
+\usepackage{xcolor}
+
+%%%%%%%%%%%%%%%%% CodeBlocks %%%%%%%%%%%%%%%%%%%%%%
+\usepackage{listings}
+\lstset{language=Haskell,
+        basicstyle=\footnotesize\ttfamily
+        ,frame=single
+        ,backgroundcolor=\color{lightgray}
+      }
+
+%%%%%%%%%%%%%%%%% \CodeBlocks %%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%% Title %%%%%%%%%%%%%%%%%%%%%%
+\author{Christoph Hegemann}
+\title{LangLang\\Monadische Kombinatoren in Haskell}
+\date{\today}
+%%%%%%%%%%%%%%%%% \Title %%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%% HeaderFooter  %%%%%%%%%%%%%%%%%%%%%%
+\usepackage{fancyhdr}
+\pagestyle{headings}
+%%%%%%%%%%%%%%%%% \HeaderFooter %%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\maketitle
+\newpage
+\tableofcontents
+
+\section{Einleitung}
+In dieser Dokumentation werde ich den Entwicklungsprozess
+sowie die getroffenen Enscheidungen bei der Durchführung des
+Compilerbauprojektes darlegen. Zunächst werde ich einige vorab
+getroffene Entscheidungen erklären.
+\\
+
+Meine Sprache sollte eine Interpretierte sein, dies liegt vor allem an
+meiner eigenen Vorliebe für REPLs und meiner Ansicht das eine Sprache ohne
+eben jene nicht angehm für die Software Entwicklung zu verwenden ist.
+\\
+
+\noindent
+Als Sprache habe ich mich aus folgenden Gründen für \textbf{Haskell}
+entschieden:
+\begin{itemize}
+\item Deklarativer Stil
+\item Interesse an der Sprache(rein funktional)
+\item Parsec Bibliothek
+\end{itemize}
+
+Zum Thema Parsec und der besonderen Unterstützung von Haskell für
+diese komme ich später noch einmal genauer. Vorab gesagt sei aber das
+durch die Verwendung eben jener für das Lexen und Parsen keine einzige
+Zeile Code generiert werden muss.
+
+\section{Spezifikation Lang}
+\subsection{Datentypen}
+
+Die Datentypen sind im Projekt unter \textit{Langlang/Data.hs} zu finden.\\
+Der deklarative Stil von Haskell, sowie das Vorhandensein von
+algebraischen Datentypen erlaubt es hier die Primitve
+aufzulisten, indem der Code gezeigt wird der diese auch definiert:
+
+\begin{lstlisting}
+data Ausdruck = Konstante Double
+                | Bezeichner String
+                | Addition Ausdruck Ausdruck
+                | Subtraktion Ausdruck Ausdruck
+                | Multiplikation Ausdruck Ausdruck
+                | Division Ausdruck Ausdruck
+                | Modulo Ausdruck Ausdruck
+                | Negation Ausdruck
+                | FunktionsAufruf String Ausdruck
+                | Konditional Bedingung Ausdruck Ausdruck
+
+data Bedingung = Und Bedingung Bedingung
+               | Oder Bedingung Bedingung
+               | Nicht Bedingung
+               | Gleich Ausdruck Ausdruck
+               | Kleiner Ausdruck Ausdruck
+               | KleinerGleich Ausdruck Ausdruck
+
+data Anweisung = Ausgabe Ausdruck
+               | Zuweisung String Ausdruck
+               | FunktionsDefinition String FunktionsKoerper
+
+data FunktionsKoerper = FunktionsKoerper String Ausdruck
+\end{lstlisting}
+
+Dies sieht noch sehr nach der Sprachdefinition im Stile der LL(1)
+Parser aus. Im nächsten Zug werde ich mich der Parsertätigkeit
+widmen und demonstrieren wie Monadische Kombinatoren den rekursiven
+Abstieg leicht aussehen lassen.
+
+\section{Parsing}
+
+Die Parser sind im Projekt unter \textit{Langlang/Parsers.hs} zu
+finden. Als mächtige Bibliothek hat kann Parsec lexer für Operatoren
+und reservierte Wörter anlegen.
+
+\begin{lstlisting}
+lexer :: TokenParser ()
+lexer = makeTokenParser
+        (javaStyle { opStart  = oneOf "+-*/%|&=!<>"
+                   , opLetter = oneOf "+-*/%|&=!<>"
+                   , reservedNames = ["let", "def", "print"
+                                     ,"if", "then", "else"]})
+\end{lstlisting}
+
+\noindent Dies hat den Vorteil das wir uns direkt mit den interessanten Fällen
+beschäftigen können.
+
+\noindent Hier einmal der  Nummernparser zeilenweise als Beispiel:
+\begin{itemize}
+\item \texttt{parseNummer = do}\\
+Defintion sowie eintreten in den do-Block $\rightarrow$ Wir haben es mit einer
+monadischen Funktion zu tun.
+\item \texttt{wert $\leftarrow$ naturalOrFloat lexer}\\
+Der vorhin definierte Lexer konsumiert alles was er für einen
+Int/Float hält und legt dies unter wert ``ab''.
+\item \texttt{case wert of}\\
+Eine der viele Stärken von Haskell. PatternMatching gegen den
+(algebraischen!) Returntyp von naturalOrFloat.
+\item \texttt{Left i $\rightarrow$ return \$ Konstante \$ fromIntegral i}\\
+Der Lexer hat einen Int geparsed. Da wir nur mit Floats arbeiten
+müssen wir mit \textit{fromIntegral} die Zahl konvertieren.
+\item \texttt{Right n $\rightarrow$ return \$ Konstante \$ n}\\
+Der Wert ist schon ein Float.
+\end{itemize}
+
+Nachdem wir nun einen Recht trivialen Parser gesehen haben kommt nun
+der interessante ``Kombinator'' twist von Parsec.
+Nehmen wir als Beispiel die die Definition für den sehr abstrakten
+Begriff Term:
+\begin{lstlisting}
+parseTerm :: Parser Ausdruck
+parseTerm =
+  parens lexer parseAusdruck
+  <|> parseNummer
+  <|> try parseFunktionsAufruf
+  <|> try parseKonditional
+  <|> (identifier lexer >>= return . Bezeichner)
+\end{lstlisting}
+
+Dies lässt sich wie folgt lesen:
+\begin{enumerate}
+\item Ein Term ist entweder ein geklammerter Ausdruck
+\item oder eine Zahl
+\item oder ein Funktionsaufruf
+\item oder ein Konditional
+\item oder eine Zuweisung
+\end{enumerate}
+
+\noindent Wobei für die Prüfung auf Funktionsaufruf und Konditional Backtracking
+eingesetzt werden muss falls ein Parser auf die Nase fällt. Dies sieht
+man am vorangestellten \textbf{try}. Wir haben bereits vor diesem
+Beispiel Kombinatoren gesehen. Nehmen wir uns noch einmal den lexer
+vor den Parsec uns generiert hat:
+\begin{lstlisting}
+opStart  = oneOf "+-*/%|&=!<>"
+\end{lstlisting}
+\texttt{oneOf} ist hierbei eine Anweisung mit der Typsignatur:
+\begin{lstlisting}
+oneOf :: Stream s m Char => [Char] -> ParsecT s u m Char
+\end{lstlisting}
+Die Funktion akzeptiert als Argument einen String (\texttt{[Char]}) und
+gibt einen Parser vom Typ Char zurück der nun irgendeinen der zuvor
+angegeben Buchstaben parsed. Diese Hilfsgebilde erlauben es einem den
+ansonsten nötigen ``Boilerplate'' Code zu überspringen ohne die
+Lesbarkeit darunter leiden zu lassen.\cite{ParsecChar14}
+
+Dies zeigt auch noch einmal der Input Parser, der für einen gegebenen Input:
+\begin{enumerate}
+\item Vorangestellten Whitespace konsumiert
+\item Einen der drei Anweisungstypen parsed
+\item und nur erfolgreich ist, wenn anschließend kein Input mehr übrig ist
+\end{enumerate}
+
+\begin{lstlisting}
+parseInput :: Parser Anweisung
+parseInput = do
+  whiteSpace lexer
+  a <- (parsePrint
+        <|> parseZuweisung
+        <|> parseFunktionsDefinition
+       )
+  eof
+  return a
+\end{lstlisting}
+
+\noindent Dieser leicht verständliche und vor allem kompositionierbare Ansatz
+macht das Parsen mit Parsec besonders anschaulich.\\
+Der Input wird hierbei in eine AST ähnliche Form geparsed.
+
+TODO: Parser Monade \cite{GHEM}
+
+\section{Interpretieren}
+
+Das Interpretieren der geparsten Statements ist nun lediglich Pattern
+Matching gegen die in \textit{Langlang.Data} definierten Typen.
+Interessant an dieser Stelle ist die Verwendung der ``Error Monade''
+um sicher zu gehen, dass der Interpreter nie durch einen Fehler gestört
+werden kann. Hierzu wrappt man den Unfehlbareren
+Rechner in einem Fehlbaren und zieht damit die Fehlerbehandlung aus
+dem Kontrollfluss des Programmes heraus.
+
+\section{Der Rechner}
+
+... oder warum funktionale Programmierung schön ist. Das gesamte Programm wird dann nun in \textit{langlang.hs}
+zusammengeführt. Es besteht aus drei Monaden und einem Map.
+\subsection{IO }
+
+Die IO Monade ist in Haskell das Bindeglieg zwischen Programm und
+Umgebung. Hier wird mit \texttt{liftIO getContents} die Nutzereingabe
+gelesen und im Zusammenspiel mit der ErrorMonade die Fehlermeldungen
+aus dem Programm gehoben. (Als schönes Beispiel für die Vorzüge von
+laziness dient die Funktion \texttt{rechner}. Obwohl der Input durch den User
+Zeile für Zeile geschieht wird direkt über den gesamten Input gemappt.)\cite{IO14}
+
+\subsection{Error}
+
+Die ErrorMonade hatte schon in Interpretieren ihre Erklärung aber hier
+sieht man noch einmal deutlich ihre Funktionsweise. Eine Rechnung ist
+entweder ein Fehler oder ein geparster Wert und anschließend entweder
+eine interpretierte Anweisung oder ein Fehler. Jedoch nie eine
+fehlerhafte interpretierte Anweisung.\cite{ER14}
+
+\subsection{State}
+
+Wer in Paradigmen der Programmierung aufgepasst hat, weiß das Werte
+unveränderlich und Programmierung vorzugsweise zustandslos ist. Da in
+unserem Interpreter jedoch Funktionen und Werte definierbar sein
+sollen, gibt uns State die Möglichkeit einen Zustand einzuführen der
+während der Ausführung von Rechner existiert, dieser jedoch nie
+entkommen kann, und damit keine Auswirkung auf die aufrufende Welt
+hat. Weiterhin erlaubt uns State eine Liste von Konstanten mit in den
+Rechner zu geben.\cite{ST14}
+
+
+\begin{abstract}
+  \noindent
+  \begin{itemize}
+  \item \texttt{berechne} führt parsen und interpretieren für eine
+    Zeile Input durch
+  \item \texttt{rechner} führt \texttt{berechne} für jede Zeile Input
+    aus
+  \item \texttt{main} kapselt \texttt{rechner} in State und gibt einen
+    Anfangszustand hinein
+  \end{itemize}
+\end{abstract}
+
+\section{Fazit}
+
+Das beschäftigen mit Haskell hat mir großen Spaß gemacht. Die
+eingesetzten Technologien waren erfrischend ungewöhnlich und konnten
+ein ums andere mal ins Staunen versetzten. Auf jeden Fall werde ich
+die Entwicklung fortsetzen um Lang endlich den Listentyp zu geben den
+es verdient hat.
+
+\newpage
+%%%%%%%%%%%%%%%%% Bibetex %%%%%%%%%%%%%%%%%%%%%%
+\bibliographystyle{natdin}
+\bibliography{bibliography}
+%%%%%%%%%%%%%%%%% \Bibtex  %%%%%%%%%%%%%%%%%%%%%%
+
+\end{document}
