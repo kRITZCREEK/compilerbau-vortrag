@@ -1,5 +1,7 @@
 module Langlang.Data
        (
+         Wert,
+         Liste(Liste, Cons, LeereListe, Tail),
          Ausdruck(Konstante, Bezeichner, Addition, Subtraktion, Multiplikation
                    , Division
                    , Modulo
@@ -9,8 +11,16 @@ module Langlang.Data
                    )
        , Bedingung(Und, Oder, Nicht, Gleich, Kleiner, KleinerGleich)
        , FunktionsKoerper(FunktionsKoerper)
-       , Anweisung(Ausgabe, Zuweisung, FunktionsDefinition)
+       , Anweisung(ListenAusgabe, Ausgabe, Zuweisung, FunktionsDefinition)
        ) where
+
+type Wert = Either Liste Ausdruck
+
+data Liste = Liste [Ausdruck]
+           | Cons Ausdruck Liste
+           | Tail Liste
+           | LeereListe
+             deriving (Show)
 
 data Ausdruck = Konstante Double
                 | Bezeichner String
@@ -35,7 +45,8 @@ data Bedingung = Und Bedingung Bedingung
 data FunktionsKoerper = FunktionsKoerper String Ausdruck
                     deriving (Show)
 
-data Anweisung = Ausgabe Ausdruck
+data Anweisung = ListenAusgabe Liste
+               | Ausgabe Ausdruck
                | Zuweisung String Ausdruck
                | FunktionsDefinition String FunktionsKoerper
                deriving (Show)

@@ -6,14 +6,33 @@
 \usepackage{hyperref}
 \usepackage{natbib}
 \usepackage{xcolor}
+\usepackage{color}
 
 %%%%%%%%%%%%%%%%% CodeBlocks %%%%%%%%%%%%%%%%%%%%%%
 \usepackage{listings}
-\lstset{language=Haskell,
-        basicstyle=\footnotesize\ttfamily
-        ,frame=single
-        ,backgroundcolor=\color{lightgray}
-      }
+
+\lstset{
+  frame=none,
+  xleftmargin=2pt,
+  stepnumber=1,
+  numbers=left,
+  numbersep=5pt,
+  numberstyle=\ttfamily\tiny\color[gray]{0.3},
+  belowcaptionskip=\bigskipamount,
+  captionpos=b,
+  escapeinside={*'}{'*},
+  language=haskell,
+  tabsize=2,
+  emphstyle={\bf},
+  commentstyle=\it,
+  stringstyle=\mdseries\rmfamily,
+  showspaces=false,
+  keywordstyle=\bfseries\rmfamily,
+  columns=flexible,
+  basicstyle=\small\ttfamily,
+  showstringspaces=false,
+  morecomment=[l]\%,
+}
 
 %%%%%%%%%%%%%%%%% \CodeBlocks %%%%%%%%%%%%%%%%%%%%%%
 
@@ -68,17 +87,17 @@ Der deklarative Stil von Haskell, sowie das Vorhandensein von
 algebraischen Datentypen erlaubt es hier die Primitve
 aufzulisten, indem der Code gezeigt wird der diese auch definiert:
 
-\begin{lstlisting}
+\begin{lstlisting}[caption=Datentypen]
 data Ausdruck = Konstante Double
-                | Bezeichner String
-                | Addition Ausdruck Ausdruck
-                | Subtraktion Ausdruck Ausdruck
-                | Multiplikation Ausdruck Ausdruck
-                | Division Ausdruck Ausdruck
-                | Modulo Ausdruck Ausdruck
-                | Negation Ausdruck
-                | FunktionsAufruf String Ausdruck
-                | Konditional Bedingung Ausdruck Ausdruck
+              | Bezeichner String
+              | Addition Ausdruck Ausdruck
+              | Subtraktion Ausdruck Ausdruck
+              | Multiplikation Ausdruck Ausdruck
+              | Division Ausdruck Ausdruck
+              | Modulo Ausdruck Ausdruck
+              | Negation Ausdruck
+              | FunktionsAufruf String Ausdruck
+              | Konditional Bedingung Ausdruck Ausdruck
 
 data Bedingung = Und Bedingung Bedingung
                | Oder Bedingung Bedingung
@@ -105,13 +124,13 @@ Die Parser sind im Projekt unter \textit{Langlang/Parsers.hs} zu
 finden. Als mächtige Bibliothek hat kann Parsec lexer für Operatoren
 und reservierte Wörter anlegen.
 
-\begin{lstlisting}
+\begin{lstlisting}[caption=built-in lexeme generator]
 lexer :: TokenParser ()
 lexer = makeTokenParser
-        (javaStyle { opStart  = oneOf "+-*/%|&=!<>"
-                   , opLetter = oneOf "+-*/%|&=!<>"
-                   , reservedNames = ["let", "def", "print"
-                                     ,"if", "then", "else"]})
+      (javaStyle { opStart  = oneOf "+-*/%|&=!<>"
+                 , opLetter = oneOf "+-*/%|&=!<>"
+                 , reservedNames = ["let", "def", "print"
+                                   ,"if", "then", "else"]})
 \end{lstlisting}
 
 \noindent Dies hat den Vorteil das wir uns direkt mit den interessanten Fällen
@@ -139,7 +158,7 @@ Nachdem wir nun einen Recht trivialen Parser gesehen haben kommt nun
 der interessante ``Kombinator'' twist von Parsec.
 Nehmen wir als Beispiel die die Definition für den sehr abstrakten
 Begriff Term:
-\begin{lstlisting}
+\begin{lstlisting}[caption=Termparser]
 parseTerm :: Parser Ausdruck
 parseTerm =
   parens lexer parseAusdruck
@@ -183,7 +202,7 @@ Dies zeigt auch noch einmal der Input Parser, der für einen gegebenen Input:
 \item und nur erfolgreich ist, wenn anschließend kein Input mehr übrig ist
 \end{enumerate}
 
-\begin{lstlisting}
+\begin{lstlisting}[caption=Inputparser]
 parseInput :: Parser Anweisung
 parseInput = do
   whiteSpace lexer

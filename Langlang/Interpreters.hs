@@ -103,6 +103,11 @@ interpretiereAusdruck (Konditional kond a1 a2) = do
   if b then interpretiereAusdruck a1 else interpretiereAusdruck a2
 
 interpretiereAnweisung :: Anweisung -> Rechner ()
+interpretiereAnweisung (ListenAusgabe (Cons h (Liste t))) = do
+  head <- interpretiereAusdruck h
+  tail <- mapM interpretiereAusdruck t
+  liftIO $ print $ head : tail
+
 interpretiereAnweisung (Ausgabe ausdruck) = do
   n <- interpretiereAusdruck ausdruck
   liftIO $ print n

@@ -8,6 +8,7 @@ module Langlang.Parsers
        , parseKonditionalTerm
        , parseVergleich
        , parseTerm
+       , parseListenAusgabe
        , parsePrint
        , parseZuweisung
        , parseFunktionsDefinition
@@ -27,7 +28,23 @@ lexer = makeTokenParser
         (javaStyle { opStart  = oneOf "+-*/%|&=!<>"
                    , opLetter = oneOf "+-*/%|&=!<>"
                    , reservedNames = ["let", "def", "print"
-                                     ,"if", "then", "else"]})
+                                     ,"if", "then", "else"
+                                     , "printList", "tail"]})
+
+parseListenAusdruck :: Parser Ausdruck
+parseListenAusdruck = do
+  char ','
+  a <- parseAusdruck
+  return a
+
+
+parseListe :: Parser Liste
+parseListe = do
+  char '['
+  h <- parseAusdruck
+  l <- many parseListenAusdruck
+  char ']'
+  return $ Cons h (Liste l)
 
 parseNummer :: Parser Ausdruck
 parseNummer = do
@@ -94,6 +111,12 @@ parseTerm =
   <|> try parseKonditional
   <|> (identifier lexer >>= return . Bezeichner)
 
+parseListenAusgabe :: Parser Anweisung
+parseListenAusgabe = do
+  reserved lexer "printList"
+  l <- parseListe
+  return $ ListenAusgabe l
+
 parsePrint :: Parser Anweisung
 parsePrint = do
   reserved lexer "print"
@@ -120,9 +143,10 @@ parseFunktionsDefinition = do
 parseInput :: Parser Anweisung
 parseInput = do
   whiteSpace lexer
-  a <- (parsePrint
-        <|> parseZuweisung
-        <|> parseFunktionsDefinition
+  a <- ( parseListenAusgabe
+         <|> parsePrint
+         <|> parseZuweisung
+         <|> parseFunktionsDefinition
        )
   eof
   return a
