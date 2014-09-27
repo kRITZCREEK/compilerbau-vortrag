@@ -1,6 +1,6 @@
 module Main where
 
-newtype Parser a = Parser (String -> [(a,String)])
+newtype Parser a = Parser (String -> [(a, String)])
 
 item :: Parser Char
 item = Parser (\cs -> case cs of
@@ -14,11 +14,12 @@ one = Parser (\cs -> case cs of
                          _ -> []
                 )
 
+parse :: Parser t -> String -> [(t, String)]
+parse (Parser p) = p
+
 -- class Monad m where
 --   return :: a -> m a
 --   (>>=) :: m a -> (a -> m b) -> m b
-parse :: Parser t -> String -> [(t, String)]
-parse (Parser p) = p
 
 instance Monad Parser where
   return a = Parser (\cs -> [(a,cs)])

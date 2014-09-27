@@ -218,7 +218,55 @@ parseInput = do
 macht das Parsen mit Parsec besonders anschaulich.\\
 Der Input wird hierbei in eine AST ähnliche Form geparsed.
 
-TODO: Parser Monade \cite{GHEM}
+\subsection*{Parser Monade}
+
+Ich will es mir nicht nehmen lassen ein paar Zeilen über die Parser
+Monade zu schreiben. Zunächst jedoch ein paar Worte zu Monaden im
+allgemeinen:
+
+\begin{lstlisting}[caption=Typsignatur Monade]
+class Monad m where
+  return :: a -> m a
+  (>>=) :: m a -> (a -> m b) -> m b
+\end{lstlisting}
+
+Wie so oft in Haskell beginnt alles mit einer Typsignatur. Hierbei
+sagt die Signatur zunächst \textbf{nichts} über ihre
+Funktionsweise. Ein monadischer Typ muss jedoch ein ausgezeichnetes
+Mitglied sowie einen speziellen Operator
+besitzen die wir im weiteren \textit{Unit} und \textit{Bind} nennen
+werden. Unit tut hierbei nicht als den Monadischen Typ  mit
+seinem einzigen Parameter zu konstruieren. Das deutlich interessantere
+Konzept stellt \textit{Bind} dar. Aus einem monadischen Wert vom Typ a
+wird mittels einer Funktion von a nach einem monadischen Wert vom Typ
+b ein monadischer Wert vom Typ b erzeugt. Dies klingt nach viel
+Kauderwelsch lässt sich aber glücklicherweise anschaulich an der
+Parser Monade erklären.
+Sei ein Parser zunächst wie folgt definiert:
+\begin{lstlisting}[caption=ParserTyp]
+type Parser a = Parser (String -> [(a,String)])
+\end{lstlisting}
+Ein Input vom Typ String wird hierbei im Erfolgsfall in eine Liste von
+geparsten ``Token'' und dem jeweils verbleibenden String zerlegt. Die leere Liste
+signalisiert den Fehlerfall. Nun überführen wir den Parser Typ wie
+folgt in einen monadischen:
+\begin{lstlisting}[caption=Monadischer Parser]
+instance Monad Parser where
+return a = Parser (\cs -> [(a,cs)])
+p >>= f = Parser (\cs -> concat [parse (f a) cs' |
+(a,cs') <- parse p cs])
+\end{lstlisting}
+Der Parser return gibt als einziges Token sein Argument zurück ohne etwas vom
+Input zu konsumieren. \\
+Der Bind Operator für Parser wendet zunächst den Parser p auf den
+Input cs an und leitet das Ergebnis an f weiter wobei f die
+Eigenschaft hat, dass es mit a zusammen (f(a)) einen neuen Parser
+bildet. Bind erlaubt es also mehrere Parser hintereinander
+auszuführen. Hierbei ist anzumerken, dass beim Fehlschlagen eines
+Parsers das Ergebnis des Binds immer die leere Liste ist, da die List
+Comprehension dann auf einer leeren Menge agiert.\\
+\cite{GHEM}
+
 
 \section{Interpretieren}
 
