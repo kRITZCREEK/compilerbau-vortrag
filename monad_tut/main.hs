@@ -13,7 +13,8 @@ one = Parser (\cs -> case cs of
                          ('1': t) -> [('1', t)]
                          _ -> []
                 )
-
+--Dekonstruktor Funktion
+--Point free Style erklären!!
 parse :: Parser t -> String -> [(t, String)]
 parse (Parser p) = p
 
@@ -40,8 +41,8 @@ instance MonadPlus Parser where
 
 (+++) :: Parser a -> Parser a -> Parser a
 p +++ q = Parser (\cs -> case parse (p ++# q) cs of
-                          [] -> []
-                          (x:_) -> [x])
+                     [] -> []
+                     (x:_) -> [x])
 oneAtPos3 :: Parser String
 oneAtPos3  = do
   first <- item
